@@ -1,6 +1,6 @@
 import { Given, When, Then } from '@cucumber/cucumber';
 import { expect } from '@playwright/test';
-import { CustomWorld, getPage } from '../support/world';
+import { getPage } from '../support/world';
 import { DashboardPage } from '@pages/DashboardPage';
 import { SignupHelper } from '@helpers/signupHelper';
 import { OnboardingHelper } from '@helpers/onboardingHelper';
@@ -11,55 +11,49 @@ let dashboardPage: DashboardPage;
 let signupHelper: SignupHelper;
 let onboardingHelper: OnboardingHelper;
 
-// ── BACKGROUND / GIVEN STEPS ──────────────────────────────────
+// ── GIVEN STEPS ───────────────────────────────────────────────
 
-Given('I have completed {string} onboarding and clicked Let\'s Start',
-    async function (this: CustomWorld, accountType: string) {
+Given("I have completed {string} onboarding and clicked Let's Start",
+    async function (accountType: string) {
         const page = getPage(this);
         dashboardPage = new DashboardPage(page);
         signupHelper = new SignupHelper(page);
         onboardingHelper = new OnboardingHelper(page);
 
-        const type = accountType as AccountType;
-        await signupHelper.signUpWithGeneratedData(type);
-        await onboardingHelper.completeOnboarding(type);
+        await signupHelper.signUpWithGeneratedData(accountType as AccountType);
+        await onboardingHelper.completeOnboarding(accountType as AccountType);
     }
 );
 
-Given('I am on the dashboard', async function (this: CustomWorld) {
+Given('I am on the dashboard', async function () {
     const page = getPage(this);
     dashboardPage = new DashboardPage(page);
     await dashboardPage.assertDashboardLoaded();
 });
 
-Given('I am on the dashboard with unverified email', async function (this: CustomWorld) {
+Given('I am on the dashboard with unverified email', async function () {
     const page = getPage(this);
     dashboardPage = new DashboardPage(page);
-    // Email verification is shown by default on new accounts
     await dashboardPage.assertDashboardLoaded();
 });
 
 Given('I have completed {string} onboarding with {string} usage selection',
-    async function (this: CustomWorld, accountType: string, usageSelection: string) {
+    async function (accountType: string, usageSelection: string) {
         const page = getPage(this);
         dashboardPage = new DashboardPage(page);
         signupHelper = new SignupHelper(page);
         onboardingHelper = new OnboardingHelper(page);
-        // Note: usageSelection affects the landing URL
-        // For 'Lead Finder' — lands on /v2/leads
         await signupHelper.signUpWithGeneratedData(accountType as AccountType);
         await onboardingHelper.completeOnboarding(accountType as AccountType);
         logger.info(`Usage selection was: ${usageSelection}`);
     }
 );
 
-// ── DASHBOARD ASSERTION STEPS ─────────────────────────────────
+// ── THEN STEPS ────────────────────────────────────────────────
 
-Then('the dashboard should show the welcome message with my first name',
-    async function () {
-        await dashboardPage.assertDashboardLoaded();
-    }
-);
+Then('the dashboard should show the welcome message with my first name', async function () {
+    await dashboardPage.assertDashboardLoaded();
+});
 
 Then('the email verification banner should be visible', async function () {
     await dashboardPage.assertEmailVerificationBannerVisible();
@@ -73,8 +67,6 @@ Then('the {string} button should be visible', async function (buttonText: string
     const page = getPage(this);
     await expect(page.getByRole('button', { name: buttonText })).toBeVisible();
 });
-
-// ── CHECKLIST STEPS ───────────────────────────────────────────
 
 Then('the onboarding checklist should show {string}', async function (progress: string) {
     const page = getPage(this);
@@ -101,46 +93,33 @@ Then('the onboarding checklist should be dismissed', async function () {
     await expect(page.getByText(/0\/\d+ steps completed/)).not.toBeVisible();
 });
 
-// ── SIDEBAR STEPS ─────────────────────────────────────────────
-
 Then('the sidebar should show the {string} icon', async function (iconName: string) {
     const page = getPage(this);
-    // Sidebar icons may be SVG without text — check for aria-label or title
-    const icon = page.locator(`[aria-label*="${iconName}"], [title*="${iconName}"], a:has-text("${iconName}")`).first();
+    const icon = page.locator(
+        `[aria-label*="${iconName}"], [title*="${iconName}"], a:has-text("${iconName}")`
+    ).first();
     await expect(icon).toBeVisible();
 });
 
-// ── FILTER / DROPDOWN STEPS ───────────────────────────────────
+Then('the sequences list should show the {string} filter dropdown', async function (filterText: string) {
+    const page = getPage(this);
+    await expect(page.getByText(filterText)).toBeVisible();
+});
 
-Then('the sequences list should show the {string} filter dropdown',
-    async function (filterText: string) {
-        const page = getPage(this);
-        await expect(page.getByText(filterText)).toBeVisible();
-    }
-);
+Then('the {string} dropdown filter should be visible in the sequences list', async function (filterText: string) {
+    const page = getPage(this);
+    await expect(page.getByText(filterText)).toBeVisible();
+});
 
-Then('the {string} dropdown filter should be visible in the sequences list',
-    async function (filterText: string) {
-        const page = getPage(this);
-        await expect(page.getByText(filterText)).toBeVisible();
-    }
-);
-
-Then('the {string} filter should NOT be visible for Personal Use accounts',
-    async function (filterText: string) {
-        const page = getPage(this);
-        await expect(page.getByText(filterText)).not.toBeVisible();
-    }
-);
-
-// ── URL STEPS ─────────────────────────────────────────────────
+Then('the {string} filter should NOT be visible for Personal Use accounts', async function (filterText: string) {
+    const page = getPage(this);
+    await expect(page.getByText(filterText)).not.toBeVisible();
+});
 
 Then('the dashboard URL should contain {string}', async function (urlPart: string) {
     const page = getPage(this);
     await expect(page).toHaveURL(new RegExp(urlPart));
 });
-
-// ── BANNER STEPS ──────────────────────────────────────────────
 
 Then('the banner should contain {string}', async function (text: string) {
     const page = getPage(this);
@@ -158,21 +137,19 @@ Then('the announcement banner should disappear', async function () {
     await expect(banner).not.toBeVisible();
 });
 
-// ── SKIP ONBOARDING STEPS ─────────────────────────────────────
+Then('the {string} link should be visible on the dashboard', async function (linkText: string) {
+    const page = getPage(this);
+    await expect(page.getByText(linkText)).toBeVisible();
+});
 
-Then('the {string} link should be visible on the dashboard',
-    async function (linkText: string) {
-        const page = getPage(this);
-        await expect(page.getByText(linkText)).toBeVisible();
-    }
-);
+// ── WHEN STEPS ────────────────────────────────────────────────
 
-When('I click {string}', async function (this: CustomWorld, text: string) {
+When('I click {string}', async function (text: string) {
     const page = getPage(this);
     await page.getByText(text).click();
 });
 
-When('I click the X on the announcement banner', async function (this: CustomWorld) {
+When('I click the X on the announcement banner', async function () {
     const page = getPage(this);
     const closeBtn = page.locator('[class*="banner"] button, [class*="announcement"] button').first();
     await closeBtn.click();

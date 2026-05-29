@@ -12,9 +12,9 @@ export class CustomWorld extends World {
     browser!: Browser;
     context!: BrowserContext;
     page!: Page;
-    testEmail?: string;       // Store generated email for cross-step use
-    testPassword?: string;    // Store generated password for cross-step use
-    accountType?: string;     // Store account type for cross-step assertions
+    testEmail?: string;
+    testPassword?: string;
+    accountType?: string;
 
     constructor(options: IWorldOptions) {
         super(options);
@@ -41,12 +41,27 @@ export class CustomWorld extends World {
 setWorldConstructor(CustomWorld);
 
 /**
- * Helper to get the page from the Cucumber World context.
- * Used in all step definition files.
+ * getPage — safely casts Cucumber's IWorld<any> to CustomWorld and returns the page.
+ * This resolves the TypeScript error:
+ * "Argument of type 'IWorld<any>' is not assignable to parameter of type 'CustomWorld'"
+ *
+ * Usage in step definitions:
+ *   const page = getPage(this);
  */
-export function getPage(world: CustomWorld): Page {
-    if (!world.page) {
-        throw new Error('Page not initialized. Make sure openBrowser() was called in Before hook.');
+export function getPage(world: unknown): Page {
+    const customWorld = world as CustomWorld;
+    if (!customWorld.page) {
+        throw new Error(
+            'Page not initialized. Make sure openBrowser() was called in the Before hook.',
+        );
     }
-    return world.page;
+    return customWorld.page;
+}
+
+/**
+ * getWorld — casts this context to CustomWorld for accessing extra properties.
+ * Use when you need testEmail, testPassword, or accountType from the world.
+ */
+export function getWorld(world: unknown): CustomWorld {
+    return world as CustomWorld;
 }

@@ -1,6 +1,6 @@
 import { Given, When, Then } from '@cucumber/cucumber';
 import { expect } from '@playwright/test';
-import { CustomWorld, getPage } from '../support/world';
+import { getPage, getWorld } from '../support/world';
 import { OnboardingPage } from '@pages/OnboardingPage';
 import { SignupHelper } from '@helpers/signupHelper';
 import { OnboardingHelper } from '@helpers/onboardingHelper';
@@ -13,19 +13,16 @@ let onboardingHelper: OnboardingHelper;
 
 // ── BACKGROUND STEPS ─────────────────────────────────────────
 
-Given('I have signed up and reached the onboarding page', async function (this: CustomWorld) {
+Given('I have signed up and reached the onboarding page', async function () {
     const page = getPage(this);
     onboardingPage = new OnboardingPage(page);
     signupHelper = new SignupHelper(page);
     onboardingHelper = new OnboardingHelper(page);
-
-    // Signup with generated data — account type doesn't matter here
-    // as we'll select it in the test step
     await signupHelper.signUpWithGeneratedData('personal');
     await onboardingPage.assertOnboardingModalVisible();
 });
 
-Given('I am on onboarding Step 1', async function (this: CustomWorld) {
+Given('I am on onboarding Step 1', async function () {
     const page = getPage(this);
     onboardingPage = new OnboardingPage(page);
     await onboardingPage.assertOnboardingModalVisible();
@@ -33,8 +30,10 @@ Given('I am on onboarding Step 1', async function (this: CustomWorld) {
 
 // ── ACCOUNT TYPE SELECTION ────────────────────────────────────
 
-When('I select {string} as account type', async function (this: CustomWorld, accountType: string) {
-    this.accountType = accountType.toLowerCase();
+When('I select {string} as account type', async function (accountType: string) {
+    const world = getWorld(this);
+    world.accountType = accountType.toLowerCase();
+
     const typeMap: Record<string, AccountType> = {
         'personal use': 'personal',
         'personal': 'personal',
@@ -184,17 +183,17 @@ When('I complete Personal Use steps through email volume', async function () {
     await onboardingPage.clickElement(onboardingPage.emailVolume030K);
 });
 
-When('I complete the entire Business onboarding flow', async function (this: CustomWorld) {
+When('I complete the entire Business onboarding flow', async function () {
     await signupHelper.signUpWithGeneratedData('business');
     await onboardingHelper.completeOnboarding('business');
 });
 
-When('I complete the entire Clients onboarding flow', async function (this: CustomWorld) {
+When('I complete the entire Clients onboarding flow', async function () {
     await signupHelper.signUpWithGeneratedData('clients');
     await onboardingHelper.completeOnboarding('clients');
 });
 
-When('I complete the Clients onboarding flow', async function (this: CustomWorld) {
+When('I complete the Clients onboarding flow', async function () {
     await onboardingHelper.completeOnboarding('clients');
 });
 
@@ -230,8 +229,6 @@ Then('I should see the {string} option with text {string}', async function (opti
 });
 
 Then('the {string} option should have a blue border highlight', async function (option: string) {
-    // Blue border applied to selected card — visually confirmed from screenshots
-    // We verify the radio button is checked
     const page = getPage(this);
     const selectedRadio = page.locator('input[type="radio"]:checked');
     await expect(selectedRadio).toBeVisible();
@@ -243,7 +240,6 @@ Then('the forward arrow should be disabled', async function () {
 
 Then('I should automatically advance to Step 2', async function () {
     const page = getPage(this);
-    // Step 2 has a different question — verify we moved forward
     const step2Questions = [
         'Please select your occupation',
         'What is your primary goal',
@@ -274,7 +270,6 @@ Then('the welcome modal should show {string}', async function (text: string) {
 
 Then('the welcome video should show {string}', async function (text: string) {
     const page = getPage(this);
-    // Video thumbnail shows agency text
     await expect(page.getByText(text, { exact: false })).toBeVisible();
 });
 
@@ -299,8 +294,6 @@ Then('the progress bar should start filling', async function () {
 
 Then('the onboarding should complete in exactly {int} steps', async function (stepCount: number) {
     logger.info(`Verified onboarding completed in ${stepCount} steps`);
-    // This is validated by the flow completing without error
-    // The step count is architecturally verified in the onboarding helper
     expect(stepCount).toBeGreaterThan(0);
 });
 
@@ -365,7 +358,6 @@ Then('I should see the free text input {string}', async function (placeholder: s
 });
 
 Then('the text should be accepted', async function () {
-    // Text input does not show error — pass
     logger.success('Free text input accepted');
 });
 
