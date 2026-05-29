@@ -1,0 +1,53 @@
+{
+    "compilerOptions": {
+        "target": "ES2020",
+        "module": "commonjs",
+        "lib": [
+            "ES2020"
+        ],
+        "strict": true,
+        "esModuleInterop": true,
+        "skipLibCheck": true,
+        "forceConsistentCasingInFileNames": true,
+        "resolveJsonModule": true,
+        "outDir": "./dist",
+        "rootDir": "./",
+        "baseUrl": "./",
+        "paths": {
+            "@pages/*": [
+                "src/pages/*"
+            ],
+            "@helpers/*": [
+                "src/helpers/*"
+            ],
+            "@fixtures/*": [
+                "src/fixtures/*"
+            ],
+            "@api/*": [
+                "src/api/*"
+            ],
+            "@utils/*": [
+                "src/utils/*"
+            ],
+            "@data/*": [
+                "tests/data/*"
+            ]
+        },
+        "types": [
+            "node",
+            "@playwright/test"
+        ]
+    },
+    "include": [
+        "src/**/*.ts",
+        "tests/**/*.ts",
+        "playwright.config.ts"
+    ],
+    "exclude": [
+        "node_modules",
+        "dist",
+        "allure-results",
+        "allure-report",
+        "cucumber-report"
+    ]
+}
