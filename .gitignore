@@ -1,0 +1,11 @@
+@"
+node_modules/
+auth/storageState.*.json
+.env
+allure-results/
+allure-report/
+cucumber-report/
+test-results/
+playwright-report/
+*.log
+"@ | Out-File -FilePath .gitignore -Encoding utf8
