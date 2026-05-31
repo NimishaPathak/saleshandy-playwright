@@ -1,18 +1,12 @@
-import { defineConfig, devices } from '@playwright/test';
+import { defineConfig } from '@playwright/test';
 import * as dotenv from 'dotenv';
-import * as path from 'path';
 
 dotenv.config();
 
 export default defineConfig({
-    // ── API tests directory (Playwright native runner) ──────────
-    testDir: './tests/api-tests',
-
     // ── Global settings ──────────────────────────────────────────
     timeout: Number(process.env.DEFAULT_TIMEOUT) || 30000,
-    expect: {
-        timeout: 10000,
-    },
+    expect: { timeout: 10000 },
     fullyParallel: false,
     forbidOnly: false,
     retries: 1,
@@ -21,15 +15,10 @@ export default defineConfig({
     // ── Reporters ────────────────────────────────────────────────
     reporter: [
         ['list'],
-        ['allure-playwright', {
-            detail: true,
-            outputFolder: 'allure-results',
-            suiteTitle: true,
-        }],
         ['html', { outputFolder: 'playwright-report', open: 'never' }],
     ],
 
-    // ── Shared browser settings ──────────────────────────────────
+    // ── Shared settings ──────────────────────────────────────────
     use: {
         baseURL: process.env.BASE_URL || 'https://my.saleshandy.com',
         headless: process.env.HEADLESS !== 'false',
@@ -45,47 +34,20 @@ export default defineConfig({
 
     // ── Projects ─────────────────────────────────────────────────
     projects: [
-        // ── Auth setup (runs once before all tests) ───────────────
-        {
-            name: 'auth:personal',
-            testMatch: '**/hooks/auth.setup.ts',
-            use: { ...devices['Desktop Chrome'] },
-        },
-
-        // ── API tests (no browser, no auth needed) ────────────────
+        // ── API tests ONLY — no browser context ──────────────────
         {
             name: 'api',
-            testMatch: '**/api-tests/**/*.spec.ts',
+            testDir: './tests/api-tests',
+            testMatch: '**/*.spec.ts',
             use: {
-                ...devices['Desktop Chrome'],
+                // No browser — pure HTTP via APIRequestContext
                 extraHTTPHeaders: {
                     'x-api-key': process.env.API_KEY || '',
                     'Content-Type': 'application/json',
                 },
             },
         },
-
-        // ── UI tests: Chromium ────────────────────────────────────
-        {
-            name: 'chromium',
-            use: {
-                ...devices['Desktop Chrome'],
-                storageState: path.resolve(__dirname, 'auth/storageState.personal.json'),
-            },
-            dependencies: ['auth:personal'],
-        },
-
-        // ── UI tests: Firefox ─────────────────────────────────────
-        {
-            name: 'firefox',
-            use: {
-                ...devices['Desktop Firefox'],
-                storageState: path.resolve(__dirname, 'auth/storageState.personal.json'),
-            },
-            dependencies: ['auth:personal'],
-        },
     ],
 
-    // ── Output folders ───────────────────────────────────────────
     outputDir: 'test-results',
 });
