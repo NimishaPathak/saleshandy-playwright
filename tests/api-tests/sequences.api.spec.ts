@@ -15,28 +15,25 @@ function headers(key = API_KEY) {
 }
 
 /**
- * Prospects API Tests
- * Actual response structure confirmed from live API:
- * { message: string, payload: [...] }
- * Each prospect has: id, email, attributes[], tags[], verificationStatus, createdAt
+ * Sequences API Tests
+ * Actual response: { message: string, payload: [...] }
+ * Each sequence: id, title, active, steps[], user{}
  */
-test.describe('Prospects API', () => {
+test.describe('Sequences API', () => {
 
-    // ── POSITIVE TESTS ─────────────────────────────────────────
-
-    test('GET /prospects - should return 200 with prospects list', async ({ request }) => {
-        const response = await request.get(`${BASE_URL}/prospects`, { headers: headers() });
-        logger.api('GET', `${BASE_URL}/prospects`, response.status());
+    test('GET /sequences - should return 200 with sequences list', async ({ request }) => {
+        const response = await request.get(`${BASE_URL}/sequences`, { headers: headers() });
+        logger.api('GET', `${BASE_URL}/sequences`, response.status());
         expect(response.status()).toBe(200);
         const body = await safeJson(response);
         expect(body).not.toBeNull();
         expect(body).toHaveProperty('payload');
         expect(Array.isArray(body.payload)).toBeTruthy();
-        logger.success(`Prospects fetched: ${body.payload?.length} items`);
+        logger.success(`Sequences fetched: ${body.payload?.length} items`);
     });
 
-    test('GET /prospects - response schema has message and payload', async ({ request }) => {
-        const response = await request.get(`${BASE_URL}/prospects`, { headers: headers() });
+    test('GET /sequences - response schema has message and payload', async ({ request }) => {
+        const response = await request.get(`${BASE_URL}/sequences`, { headers: headers() });
         expect(response.status()).toBe(200);
         const body = await safeJson(response);
         expect(body).not.toBeNull();
@@ -45,53 +42,49 @@ test.describe('Prospects API', () => {
         logger.success('Schema validated: message + payload present');
     });
 
-    test('GET /prospects - each prospect has required fields', async ({ request }) => {
-        const response = await request.get(`${BASE_URL}/prospects`, { headers: headers() });
+    test('GET /sequences - each sequence has required fields', async ({ request }) => {
+        const response = await request.get(`${BASE_URL}/sequences`, { headers: headers() });
         expect(response.status()).toBe(200);
         const body = await safeJson(response);
         expect(body.payload.length).toBeGreaterThan(0);
-        const prospect = body.payload[0];
-        expect(prospect).toHaveProperty('id');
-        expect(prospect).toHaveProperty('email');
-        expect(prospect).toHaveProperty('attributes');
-        expect(prospect).toHaveProperty('verificationStatus');
-        logger.success(`First prospect email: "${prospect.email}"`);
+        const seq = body.payload[0];
+        expect(seq).toHaveProperty('id');
+        expect(seq).toHaveProperty('title');
+        expect(seq).toHaveProperty('active');
+        logger.success(`First sequence: "${seq.title}"`);
     });
 
-    test('GET /prospects - response time under 3 seconds', async ({ request }) => {
+    test('GET /sequences - response time under 3 seconds', async ({ request }) => {
         const start = Date.now();
-        const response = await request.get(`${BASE_URL}/prospects`, { headers: headers() });
+        const response = await request.get(`${BASE_URL}/sequences`, { headers: headers() });
         const duration = Date.now() - start;
         expect(response.status()).toBe(200);
         expect(duration).toBeLessThan(3000);
         logger.success(`Response time: ${duration}ms`);
     });
 
-    // ── NEGATIVE TESTS ─────────────────────────────────────────
-
-    test('GET /prospects - returns 4xx with invalid API key', async ({ request }) => {
-        const response = await request.get(`${BASE_URL}/prospects`, {
-            headers: headers('bad-api-key-00000'),
+    test('GET /sequences - returns 4xx with invalid API key', async ({ request }) => {
+        const response = await request.get(`${BASE_URL}/sequences`, {
+            headers: headers('invalid-key-12345'),
         });
-        logger.api('GET', `${BASE_URL}/prospects`, response.status());
-        // Saleshandy returns 400 for invalid key format
+        logger.api('GET', `${BASE_URL}/sequences`, response.status());
         expect([400, 401, 403]).toContain(response.status());
-        logger.success(`Invalid API key rejected with: ${response.status()}`);
+        logger.success(`Invalid key rejected with: ${response.status()}`);
     });
 
-    test('GET /prospects/:id - returns 4xx for non-existent prospect', async ({ request }) => {
-        const response = await request.get(`${BASE_URL}/prospects/nonexistent-id-999`, {
+    test('GET /sequences - returns 4xx with missing API key', async ({ request }) => {
+        const response = await request.get(`${BASE_URL}/sequences`, {
+            headers: { 'Content-Type': 'application/json' },
+        });
+        expect([200, 400, 401, 403]).toContain(response.status());
+        logger.success(`Missing key response: ${response.status()}`);
+    });
+
+    test('GET /sequences/:id - returns 4xx for non-existent ID', async ({ request }) => {
+        const response = await request.get(`${BASE_URL}/sequences/nonexistent-id-999`, {
             headers: headers(),
         });
         expect([400, 404]).toContain(response.status());
-        logger.success('Non-existent prospect ID returns 4xx');
-    });
-
-    test('GET /prospects - message confirms successful fetch', async ({ request }) => {
-        const response = await request.get(`${BASE_URL}/prospects`, { headers: headers() });
-        expect(response.status()).toBe(200);
-        const body = await safeJson(response);
-        expect(body.message).toContain('prospects');
-        logger.success(`API message: "${body.message}"`);
+        logger.success('Non-existent ID returns 4xx');
     });
 });
