@@ -1,8 +1,8 @@
 import { test as setup } from '@playwright/test';
 import path from 'path';
 import fs from 'fs';
-import { SignupHelper } from '@helpers/SignupHelper';
-import { OnboardingHelper } from '@helpers/OnboardingHelper';
+import { SignupHelper } from '@helpers/signupHelper';
+import { OnboardingHelper } from '@helpers/onboardingHelper';
 import { DashboardPage } from '@pages/DashboardPage';
 import { logger } from '@utils/logger';
 import { AccountType, generateSignupData } from '@utils/randomData';
