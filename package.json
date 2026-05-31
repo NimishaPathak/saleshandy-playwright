@@ -17,8 +17,11 @@
     "allure:generate": "allure generate allure-results --clean -o allure-report",
     "allure:open": "allure open allure-report",
     "allure:report": "npm run allure:generate && npm run allure:open",
-    "auth:setup": "playwright test src/hooks/auth.setup.ts --reporter=list",
-    "clean": "rimraf allure-results allure-report cucumber-report dist"
+    "auth:setup": "ts-node -r tsconfig-paths/register src/hooks/auth.setup.ts",
+    "clean": "rimraf allure-results allure-report cucumber-report dist",
+    "auth:personal": "ts-node -r tsconfig-paths/register src/hooks/auth.setup.ts personal",
+    "auth:business": "ts-node -r tsconfig-paths/register src/hooks/auth.setup.ts business",
+    "auth:clients": "ts-node -r tsconfig-paths/register src/hooks/auth.setup.ts clients"
   },
   "dependencies": {
     "dotenv": "^16.4.5"
@@ -34,7 +37,8 @@
     "multiple-cucumber-html-reporter": "^3.7.0",
     "rimraf": "^5.0.7",
     "ts-node": "^10.9.2",
-    "typescript": "^5.4.5"
+    "typescript": "^5.4.5",
+    "tsconfig-paths": "^4.2.0"
   },
   "cucumber": {
     "require": [

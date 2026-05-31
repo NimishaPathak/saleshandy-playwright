@@ -1,72 +1,210 @@
-import { test as setup } from '@playwright/test';
-import path from 'path';
-import fs from 'fs';
-import { SignupHelper } from '@helpers/signupHelper';
-import { OnboardingHelper } from '@helpers/onboardingHelper';
-import { DashboardPage } from '@pages/DashboardPage';
-import { logger } from '@utils/logger';
-import { AccountType, generateSignupData } from '@utils/randomData';
+import { chromium, Page } from '@playwright/test';
+import * as dotenv from 'dotenv';
+import * as fs from 'fs';
+import * as path from 'path';
 
-/**
- * Global Setup — runs ONCE before any tests.
- * Generates and saves storage state for each account type:
- * - auth/storageState.personal.json
- * - auth/storageState.business.json
- * - auth/storageState.clients.json
- *
- * These files are then used by all subsequent tests via playwright.config.ts.
- * This means tests skip login entirely — huge speed boost!
- */
+dotenv.config();
 
-const accountTypes: AccountType[] = ['personal', 'business', 'clients'];
+const BASE_URL = 'https://my.saleshandy.com';
+const AUTH_DIR = path.resolve(__dirname, '../../auth');
 
-for (const accountType of accountTypes) {
-    setup(`auth setup: ${accountType}`, async ({ browser }) => {
-        logger.step(`Setting up auth for ${accountType} account`);
+// ── Single account — run once per account type ─────────────────
+// Usage:
+//   npm run auth:setup -- personal
+//   npm run auth:setup -- business
+//   npm run auth:setup -- clients
 
-        const context = await browser.newContext();
-        const page = await context.newPage();
+const accountType = (process.argv[2] || 'personal') as 'personal' | 'business' | 'clients';
 
-        try {
-            const signupHelper = new SignupHelper(page);
-            const onboardingHelper = new OnboardingHelper(page);
-            const dashboardPage = new DashboardPage(page);
+const EMAIL = process.env.PERSONAL_EMAIL || 'nimishapathak29@gmail.com';
+const PASSWORD = process.env.PERSONAL_PASSWORD || 'QaAssignment@123';
 
-            // ── Step 1: Signup ────────────────────────────────────────
-            logger.step(`[${accountType}] Step 1: Signup`);
-            const signupData = await signupHelper.signUpWithGeneratedData(accountType);
+const onboardingConfig = {
+    personal: {
+        accountType: 'Personal Use',
+        step2: 'Freelancer',
+        step3: 'Cold Outreach',
+        step4: '0 - 30K',
+        step5: '',
+    },
+    business: {
+        accountType: 'Business',
+        step2: 'Generate B2B Leads / Book Meetings',
+        step3: 'No, I have not',
+        step4: 'Cold Outreach',
+        step5: 'Google',
+    },
+    clients: {
+        accountType: 'Clients',
+        step2: 'Digital Marketing Agency',
+        step3: '6 - 20',
+        step4: '0 - 30K',
+        step5: 'Google',
+    },
+};
 
-            // Store credentials for reference (optional — useful for debugging)
-            logger.info(`Credentials for ${accountType}: ${signupData.email} / ${signupData.password}`);
+// ── Signup ────────────────────────────────────────────────────
 
-            // ── Step 2: Complete Onboarding ───────────────────────────
-            logger.step(`[${accountType}] Step 2: Onboarding`);
-            await onboardingHelper.completeOnboarding(accountType);
+async function doSignup(page: Page): Promise<void> {
+    console.log(`  → Going to signup page...`);
+    await page.goto(`${BASE_URL}/signup`, { waitUntil: 'domcontentloaded', timeout: 30000 });
+    await page.waitForTimeout(2000);
 
-            // ── Step 3: Verify Dashboard ──────────────────────────────
-            logger.step(`[${accountType}] Step 3: Dashboard verification`);
-            await dashboardPage.assertDashboardLoaded();
-            await onboardingHelper.verifyAccountTypeUI(accountType);
+    await page.locator('input[placeholder="John"]').fill('QA');
+    await page.locator('input[placeholder="Doe"]').fill('Automation');
+    await page.locator('input[placeholder="johndoe@example.com"]').fill(EMAIL);
+    await page.locator('input[placeholder="Minimum 8 Characters"]').fill(PASSWORD);
+    await page.waitForTimeout(500);
 
-            // ── Step 4: Save Storage State ────────────────────────────
-            logger.step(`[${accountType}] Step 4: Saving storage state`);
-            const storageState = await context.storageState();
-            const outputDir = path.resolve(__dirname, '../../auth');
+    // Submit button — not SSO buttons
+    await page.locator('button[type="submit"]').click();
 
-            if (!fs.existsSync(outputDir)) {
-                fs.mkdirSync(outputDir, { recursive: true });
+    await page.waitForURL(/sequence\?signup=completed/, { timeout: 30000 });
+    console.log(`  ✅ Signup successful`);
+}
+
+// ── Login ─────────────────────────────────────────────────────
+
+async function doLogin(page: Page): Promise<boolean> {
+    console.log(`  → Going to login page...`);
+    await page.goto(`${BASE_URL}/login`, { waitUntil: 'domcontentloaded', timeout: 30000 });
+    await page.waitForTimeout(2000);
+
+    const emailInput = page.locator('input[type="email"]').first();
+    await emailInput.waitFor({ state: 'visible', timeout: 10000 });
+    await emailInput.fill(EMAIL);
+
+    await page.locator('input[type="password"]').first().fill(PASSWORD);
+
+    // Click submit — not SSO buttons
+    await page.locator('button[type="submit"]').click();
+    await page.waitForTimeout(4000);
+
+    const url = page.url();
+    console.log(`  → After login URL: ${url}`);
+    return !url.includes('/login') && !url.includes('/signup');
+}
+
+// ── Onboarding ────────────────────────────────────────────────
+
+async function completeOnboarding(page: Page): Promise<void> {
+    const config = onboardingConfig[accountType];
+    console.log(`  → Completing onboarding for: ${config.accountType}`);
+
+    // Wait for modal
+    await page.waitForSelector("text=Let's shape your experience", { timeout: 20000 });
+    await page.waitForTimeout(1000);
+
+    // Step 1 — Account type
+    await page.getByText(config.accountType, { exact: true }).click();
+    console.log(`  → Step 1 done: ${config.accountType}`);
+    await page.waitForTimeout(1200);
+
+    // Step 2
+    await page.getByRole('button', { name: config.step2 }).first().click();
+    console.log(`  → Step 2 done: ${config.step2}`);
+    await page.waitForTimeout(1200);
+
+    // Step 3
+    await page.getByRole('button', { name: config.step3 }).first().click();
+    console.log(`  → Step 3 done: ${config.step3}`);
+    await page.waitForTimeout(1200);
+
+    // Step 4
+    await page.getByRole('button', { name: config.step4 }).first().click();
+    console.log(`  → Step 4 done: ${config.step4}`);
+    await page.waitForTimeout(1200);
+
+    // Step 5 — Business & Clients only
+    if (config.step5) {
+        await page.getByRole('button', { name: config.step5 }).first().click();
+        console.log(`  → Step 5 done: ${config.step5}`);
+        await page.waitForTimeout(1200);
+    }
+
+    // Welcome modal → Let's Start
+    await page.waitForSelector('text=Welcome to Saleshandy', { timeout: 20000 });
+    await page.getByRole('button', { name: /Let's Start/i }).click();
+    await page.waitForURL(/my\.saleshandy\.com\/(sequence|v2)/, { timeout: 25000 });
+    console.log(`  ✅ Onboarding complete — on dashboard`);
+}
+
+// ── Main ──────────────────────────────────────────────────────
+
+async function setupAuth() {
+    console.log(`\n🔐 Auth Setup — Account Type: ${accountType.toUpperCase()}`);
+    console.log(`   Email: ${EMAIL}\n`);
+
+    if (!fs.existsSync(AUTH_DIR)) {
+        fs.mkdirSync(AUTH_DIR, { recursive: true });
+    }
+
+    const browser = await chromium.launch({ headless: false });
+    const context = await browser.newContext({ viewport: { width: 1280, height: 720 } });
+    const page = await context.newPage();
+
+    try {
+        // Try login first
+        const loginOk = await doLogin(page);
+
+        if (loginOk) {
+            console.log(`  ✅ Login successful`);
+
+            // Check if onboarding still pending
+            const needsOnboarding = await page
+                .getByText("Let's shape your experience")
+                .isVisible({ timeout: 4000 })
+                .catch(() => false);
+
+            if (needsOnboarding) {
+                await completeOnboarding(page);
+            } else {
+                console.log(`  → Already on dashboard — no onboarding needed`);
             }
 
-            const outputPath = path.join(outputDir, `storageState.${accountType}.json`);
-            fs.writeFileSync(outputPath, JSON.stringify(storageState, null, 2));
-
-            logger.success(`Storage state saved: ${outputPath}`);
-            logger.success(`${accountType} account setup complete\n`);
-        } catch (error) {
-            logger.error(`Setup failed for ${accountType}`, error);
-            throw error;
-        } finally {
-            await context.close();
+        } else {
+            // Login failed — try signup
+            console.log(`  → Login failed — trying signup...`);
+            await doSignup(page);
+            await completeOnboarding(page);
         }
-    });
+
+        // Stable state
+        await page.waitForLoadState('networkidle', { timeout: 15000 }).catch(() => { });
+        await page.waitForTimeout(2000);
+
+        // Save storage state
+        const storageState = await context.storageState();
+        const outputPath = path.join(AUTH_DIR, `storageState.${accountType}.json`);
+        fs.writeFileSync(outputPath, JSON.stringify(storageState, null, 2));
+        console.log(`\n  💾 Saved: auth/storageState.${accountType}.json`);
+
+        console.log(`\n━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━`);
+        console.log(`  ✅ ${accountType.toUpperCase()} auth setup complete!`);
+        console.log(`━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━`);
+
+        if (accountType === 'personal') {
+            console.log(`\n  ⏭  NEXT STEPS:`);
+            console.log(`  1. Go to my.saleshandy.com → Settings → My Profile → Delete Account`);
+            console.log(`  2. Then run: npm run auth:setup -- business`);
+        } else if (accountType === 'business') {
+            console.log(`\n  ⏭  NEXT STEPS:`);
+            console.log(`  1. Go to my.saleshandy.com → Settings → My Profile → Delete Account`);
+            console.log(`  2. Then run: npm run auth:setup -- clients`);
+        } else {
+            console.log(`\n  🎉 ALL 3 STORAGE STATES SAVED!`);
+            console.log(`  Run: npm test`);
+        }
+
+    } catch (error) {
+        console.error(`  ❌ Error:`, error);
+    } finally {
+        await context.close();
+        await browser.close();
+    }
 }
+
+setupAuth().catch((err) => {
+    console.error('Fatal:', err);
+    process.exit(1);
+});
