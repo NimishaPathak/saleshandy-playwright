@@ -1,207 +1,184 @@
-import { chromium, Page, BrowserContext } from '@playwright/test';
-import * as dotenv from 'dotenv';
-import * as fs from 'fs';
-import * as path from 'path';
-import { execSync } from 'child_process';
-import { generateUniqueEmail } from '@utils/randomData';
+﻿import { chromium, Page, BrowserContext } from "@playwright/test";
+import * as dotenv from "dotenv";
+import * as fs from "fs";
+import * as path from "path";
+import { execSync } from "child_process";
 
 dotenv.config();
 
-const BASE_URL = 'https://my.saleshandy.com';
-const AUTH_DIR = path.resolve(__dirname, '../../auth');
+const BASE_URL = "https://my.saleshandy.com";
+const AUTH_DIR = path.resolve(__dirname, "../../auth");
+const EMAIL = process.env.PERSONAL_EMAIL || "nimishapathak29@gmail.com";
+const PASSWORD = process.env.PERSONAL_PASSWORD || "QaAssignment@123";
 
-const PASSWORD = process.env.PERSONAL_PASSWORD || 'QaAssignment@123';
-
-const accountTypes = ['personal', 'business', 'clients'] as const;
+const accountTypes = ["personal", "business", "clients"] as const;
 type AccountType = typeof accountTypes[number];
 
-const onboardingConfig: Record<AccountType, {
-    accountType: string;
-    step2: string;
-    step3: string;
-    step4: string;
-    step5: string;
-}> = {
-    personal: {
-        accountType: 'Personal Use',
-        step2: 'Freelancer',
-        step3: 'Cold Outreach',
-        step4: '0 - 30K',
-        step5: '',
-    },
-    business: {
-        accountType: 'Business',
-        step2: 'Generate B2B Leads / Book Meetings',
-        step3: 'No, I have not',
-        step4: 'Cold Outreach',
-        step5: 'Google',
-    },
-    clients: {
-        accountType: 'Clients',
-        step2: 'Digital Marketing Agency',
-        step3: '6 - 20',
-        step4: '0 - 30K',
-        step5: 'Google',
-    },
+/**
+ * Onboarding steps — confirmed from live UI (June 2026)
+ *
+ * Personal Use (6 steps):
+ *   1. Account Type: Personal Use
+ *   2. Occupation: Freelancer
+ *   3. Primary Goal: Generate Leads for my Business
+ *   4. Usage: Cold Outreach  ← "How would you use Saleshandy?"
+ *   5. Email Volume: 0 - 30K
+ *   6. Welcome → Let's Start
+ *
+ * Business (6 steps):
+ *   1. Account Type: Business
+ *   2. Primary Goal: Generate B2B Leads / Book Meetings
+ *   3. Experience: No, I have not
+ *   4. Usage: Cold Outreach
+ *   5. Discovery: Google
+ *   6. Welcome → Let's Start
+ *
+ * Clients (6 steps):
+ *   1. Account Type: Clients
+ *   2. Agency Type: Digital Marketing Agency
+ *   3. Client Count: 6 - 20
+ *   4. Email Volume: 0 - 30K
+ *   5. Discovery: Google
+ *   6. Welcome → Let's Start
+ */
+const onboardingSteps: Record<AccountType, string[]> = {
+    personal: [
+        "Personal Use",                    // Step 1 — account type
+        "Freelancer",                      // Step 2 — occupation
+        "Generate Leads for my Business",  // Step 3 — primary goal
+        "Cold Outreach",                   // Step 4 — how would you use it
+        "0 - 30K",                         // Step 5 — email volume
+    ],
+    business: [
+        "Business",                              // Step 1 — account type
+        "Generate B2B Leads / Book Meetings",    // Step 2 — primary goal
+        "No, I have not",                        // Step 3 — experience
+        "Cold Outreach",                         // Step 4 — usage
+        "Google",                                // Step 5 — discovery
+    ],
+    clients: [
+        "Clients",                         // Step 1 — account type
+        "Digital Marketing Agency",        // Step 2 — agency type
+        "6 - 20",                          // Step 3 — client count
+        "0 - 30K",                         // Step 4 — email volume
+        "Google",                          // Step 5 — discovery
+    ],
 };
 
 // ── Signup ────────────────────────────────────────────────────
 
-async function doSignup(page: Page, email: string): Promise<void> {
-    console.log(`\n  📝 Signing up with: ${email}`);
-    await page.goto(`${BASE_URL}/signup`, { waitUntil: 'networkidle', timeout: 45000 });
+async function doSignup(page: Page): Promise<void> {
+    console.log(`\n  Signing up: ${EMAIL}`);
+    await page.goto(`${BASE_URL}/signup`, { waitUntil: "domcontentloaded", timeout: 30000 });
     await page.waitForTimeout(2000);
 
-    const firstNameInput = page.locator('input[placeholder="John"]');
-    const lastNameInput = page.locator('input[placeholder="Doe"]');
-    const emailInput = page.locator('input[placeholder="johndoe@example.com"]');
-    const passwordInput = page.locator('input[placeholder="Minimum 8 Characters"]');
-
-    await firstNameInput.waitFor({ state: 'visible', timeout: 15000 });
-    await firstNameInput.fill('QA');
-    await lastNameInput.fill('Automation');
-    await emailInput.fill(email);
-    await passwordInput.fill(PASSWORD);
+    await page.locator('input[placeholder="John"]').fill("QA");
+    await page.locator('input[placeholder="Doe"]').fill("Automation");
+    await page.locator('input[placeholder="johndoe@example.com"]').fill(EMAIL);
+    await page.locator('input[placeholder="Minimum 8 Characters"]').fill(PASSWORD);
     await page.waitForTimeout(500);
-
-    // Self-healing double-check for form fields (SPA re-render protection)
-    if (await emailInput.inputValue() !== email) {
-        console.log('  ⚠️ Email field cleared or truncated, refilling...');
-        await emailInput.fill(email);
-    }
-    if (await passwordInput.inputValue() !== PASSWORD) {
-        console.log('  ⚠️ Password field cleared or truncated, refilling...');
-        await passwordInput.fill(PASSWORD);
-    }
-    if (await firstNameInput.inputValue() !== 'QA') {
-        await firstNameInput.fill('QA');
-    }
-    if (await lastNameInput.inputValue() !== 'Automation') {
-        await lastNameInput.fill('Automation');
-    }
-
     await page.locator('button[type="submit"]').click();
 
-    await page.waitForURL(/sequence\?signup=completed/, { timeout: 45000 });
-    console.log(`  ✅ Signup successful`);
+    await page.waitForURL(/sequence\?signup=completed/, { timeout: 30000 });
+    console.log("  Signup successful");
 }
 
 // ── Onboarding ────────────────────────────────────────────────
 
 async function completeOnboarding(page: Page, type: AccountType): Promise<void> {
-    const config = onboardingConfig[type];
-    console.log(`\n  🧭 Completing onboarding: ${config.accountType}`);
+    const steps = onboardingSteps[type];
+    console.log(`\n  Onboarding: ${type.toUpperCase()}`);
     await page.waitForTimeout(2000);
 
-    // Step 1 — Account type
-    await page.getByText(config.accountType, { exact: true }).click();
-    console.log(`  → Step 1: ${config.accountType}`);
-    await page.waitForTimeout(1500);
+    for (let i = 0; i < steps.length; i++) {
+        const stepText = steps[i];
+        const stepNum = i + 1;
 
-    // Step 2
-    await page.getByRole('button', { name: config.step2 }).first().click();
-    console.log(`  → Step 2: ${config.step2}`);
-    await page.waitForTimeout(1500);
+        console.log(`  Step ${stepNum}: ${stepText}`);
 
-    // Step 3
-    await page.getByRole('button', { name: config.step3 }).first().click();
-    console.log(`  → Step 3: ${config.step3}`);
-    await page.waitForTimeout(1500);
+        if (i === 0) {
+            // Step 1 — account type uses text click (radio label)
+            await page.getByText(stepText, { exact: true }).click();
+        } else {
+            // All other steps — button click
+            await page.getByRole("button", { name: stepText }).first().click();
+        }
 
-    // Step 4
-    await page.getByRole('button', { name: config.step4 }).first().click();
-    console.log(`  → Step 4: ${config.step4}`);
-    await page.waitForTimeout(1500);
-
-    // Step 5 — Business & Clients only
-    if (config.step5) {
-        await page.getByRole('button', { name: config.step5 }).first().click();
-        console.log(`  → Step 5: ${config.step5}`);
         await page.waitForTimeout(1500);
     }
 
-    // Welcome modal
-    await page.waitForSelector('text=Welcome to Saleshandy', { timeout: 20000 });
-    await page.getByRole('button', { name: /Let's Start/i }).click();
+    // Final — Welcome modal → Let's Start
+    await page.waitForSelector("text=Welcome to Saleshandy", { timeout: 20000 });
+    await page.getByRole("button", { name: /Let.s Start/i }).click();
     await page.waitForURL(/my\.saleshandy\.com\/(sequence|v2)/, { timeout: 25000 });
-    console.log(`  ✅ Onboarding complete`);
+    console.log("  Onboarding complete ✅");
 }
 
 // ── Save storage state ────────────────────────────────────────
 
 async function saveStorageState(context: BrowserContext, type: AccountType): Promise<void> {
-    if (!fs.existsSync(AUTH_DIR)) {
-        fs.mkdirSync(AUTH_DIR, { recursive: true });
-    }
+    if (!fs.existsSync(AUTH_DIR)) fs.mkdirSync(AUTH_DIR, { recursive: true });
     const storageState = await context.storageState();
     const outputPath = path.join(AUTH_DIR, `storageState.${type}.json`);
     fs.writeFileSync(outputPath, JSON.stringify(storageState, null, 2));
-    console.log(`\n  💾 Session saved: auth/storageState.${type}.json`);
+    console.log(`\n  Saved: auth/storageState.${type}.json`);
 }
 
-// ── Run BDD tests for account type ───────────────────────────
+// ── Run BDD tests ─────────────────────────────────────────────
 
 function runTests(type: AccountType): void {
-    console.log(`\n  🧪 Running BDD tests for: ${type.toUpperCase()}`);
-    console.log(`  ─────────────────────────────────────`);
+    console.log(`\n  Running tests: @${type}`);
     try {
         execSync(`npx cucumber-js --tags @${type}`, {
-            stdio: 'inherit',
-            cwd: path.resolve(__dirname, '../../'),
+            stdio: "inherit",
+            cwd: path.resolve(__dirname, "../../"),
         });
-        console.log(`  ✅ Tests complete for ${type.toUpperCase()}`);
     } catch {
-        // cucumber-js exits with non-zero if tests fail — that's ok, continue
-        console.log(`  ⚠️  Some tests failed for ${type.toUpperCase()} — continuing...`);
+        console.log(`  Some tests failed — continuing...`);
     }
 }
 
 // ── Delete account ────────────────────────────────────────────
 
-async function deleteAccount(page: Page, email: string): Promise<void> {
-    console.log(`\n  🗑️  Deleting account...`);
+async function deleteAccount(page: Page): Promise<void> {
+    console.log("\n  Deleting account...");
     try {
-        await page.goto(`${BASE_URL}/settings/profile`, {
-            waitUntil: 'domcontentloaded',
-            timeout: 20000,
-        });
-        await page.waitForTimeout(2000);
+        await page.goto(`${BASE_URL}/settings/profile`, { waitUntil: "domcontentloaded", timeout: 20000 });
+        await page.waitForTimeout(3000);
 
-        // Look for Delete Account button/link
-        const deleteBtn = page.getByRole('button', { name: /delete account/i })
-            .or(page.getByText(/delete account/i))
-            .first();
+        // Scroll to find delete button
+        await page.evaluate(() => window.scrollTo(0, document.body.scrollHeight));
+        await page.waitForTimeout(1000);
 
-        await deleteBtn.waitFor({ state: 'visible', timeout: 10000 });
-        await deleteBtn.click();
+        await page.getByRole("button", { name: /delete account/i }).first().click({ timeout: 10000 });
         await page.waitForTimeout(1500);
 
-        // Confirm deletion dialog
-        const confirmBtn = page.getByRole('button', { name: /confirm|yes|delete|proceed/i }).first();
+        // Confirm dialog
+        const confirmBtn = page.getByRole("button", { name: /confirm|yes.*delete|delete.*account|proceed/i }).first();
         if (await confirmBtn.isVisible({ timeout: 3000 })) {
             await confirmBtn.click();
             await page.waitForTimeout(2000);
         }
 
-        // Some apps ask for email/password confirmation
-        const emailConfirm = page.locator('input[type="email"]').first();
-        if (await emailConfirm.isVisible({ timeout: 2000 })) {
-            await emailConfirm.fill(email);
-            const submitBtn = page.getByRole('button', { name: /confirm|delete/i }).first();
-            await submitBtn.click();
+        // Password confirmation if needed
+        const passwordField = page.locator('input[type="password"]').first();
+        if (await passwordField.isVisible({ timeout: 2000 })) {
+            await passwordField.fill(PASSWORD);
+            await page.getByRole("button", { name: /confirm|delete|proceed/i }).first().click();
             await page.waitForTimeout(2000);
         }
 
-        console.log(`  ✅ Account deleted`);
-    } catch (error) {
-        console.log(`  ⚠️  Auto-delete failed — please delete manually`);
-        console.log(`  → Go to: ${BASE_URL}/settings/profile → Delete Account`);
-        console.log(`  → Press Enter here when done...`);
-
-        // Wait for manual deletion
+        console.log("  Account deleted ✅");
+    } catch {
+        console.log("\n  Auto-delete failed — please delete manually:");
+        console.log(`  ${BASE_URL}/settings/profile → Delete Account`);
+        console.log("  Press ENTER when done...");
         await new Promise<void>((resolve) => {
-            process.stdin.once('data', () => resolve());
+            process.stdin.resume();
+            process.stdin.setEncoding("utf8");
+            process.stdin.once("data", () => { process.stdin.pause(); resolve(); });
         });
+        console.log("  Continuing...");
     }
 }
 
@@ -210,66 +187,39 @@ async function deleteAccount(page: Page, email: string): Promise<void> {
 async function runAll() {
     const args = process.argv.slice(2);
     const filterType = args[0] as AccountType | undefined;
-    const typesToRun = filterType ? [filterType] : accountTypes;
+    const typesToRun = filterType ? [filterType] : [...accountTypes];
 
-    console.log(`\n${'═'.repeat(50)}`);
-    console.log(`  🚀 SALESHANDY FULL TEST RUN`);
-    console.log(`${'═'.repeat(50)}\n`);
+    console.log(`\nSALESHANDY TEST RUN — Email: ${EMAIL}`);
+    console.log(`Running: ${typesToRun.join(", ")}\n`);
 
-    const browser = await chromium.launch({ headless: process.env.HEADLESS !== 'false' });
+    const browser = await chromium.launch({ headless: false });
 
-    for (const type of typesToRun) {
-        const email = generateUniqueEmail(`qa${type}`);
-        console.log(`\n${'─'.repeat(50)}`);
-        console.log(`  ACCOUNT TYPE: ${type.toUpperCase()}`);
-        console.log(`  Email: ${email}`);
-        console.log(`${'─'.repeat(50)}`);
+    for (let i = 0; i < typesToRun.length; i++) {
+        const type = typesToRun[i];
+        const isLast = i === typesToRun.length - 1;
+
+        console.log(`\n${"─".repeat(40)}`);
+        console.log(`[${i + 1}/${typesToRun.length}] ${type.toUpperCase()}`);
+        console.log(`${"─".repeat(40)}`);
 
         const context = await browser.newContext({ viewport: { width: 1280, height: 720 } });
         const page = await context.newPage();
 
         try {
-            // 1. Signup
-            await doSignup(page, email);
-
-            // 2. Complete onboarding
+            await doSignup(page);
             await completeOnboarding(page, type);
-
-            // 3. Save storage state
             await saveStorageState(context, type);
-
-            // 4. Run BDD tests for this account type
             runTests(type);
-
-            // 5. Delete account (ready for next type)
-            if (type !== 'clients') {
-                await deleteAccount(page, email);
-            }
-
+            if (!isLast) await deleteAccount(page);
         } catch (error) {
-            console.error(`\n  ❌ Error during ${type}:`, error);
-            try {
-                const screenshotPath = path.resolve(__dirname, `../../error-${type}.png`);
-                await page.screenshot({ path: screenshotPath, fullPage: true });
-                console.log(`  📸 Screenshot saved to: ${screenshotPath}`);
-            } catch (err) {
-                console.log(`  ⚠️  Failed to take screenshot:`, err);
-            }
+            console.error(`  Error during ${type}:`, error);
         } finally {
             await context.close();
         }
     }
 
     await browser.close();
-
-    console.log(`\n${'═'.repeat(50)}`);
-    console.log(`  🎉 ALL DONE!`);
-    console.log(`  Storage states saved in: auth/`);
-    console.log(`  Run full suite anytime: npm test`);
-    console.log(`${'═'.repeat(50)}\n`);
+    console.log("\nALL DONE!");
 }
 
-runAll().catch((err) => {
-    console.error('Fatal:', err);
-    process.exit(1);
-});
+runAll().catch((err) => { console.error("Fatal:", err); process.exit(1); });
