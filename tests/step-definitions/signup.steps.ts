@@ -1,6 +1,6 @@
 import { Given, When, Then, DataTable } from '@cucumber/cucumber';
 import { expect } from '@playwright/test';
-import { getPage } from '../support/world.ts';
+import { getPage } from '../support/world';
 import { SignupPage } from '@pages/SignupPage';
 import { SignupHelper } from '@helpers/signupHelper';
 import { generateUniqueEmail } from '@utils/randomData';

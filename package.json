@@ -21,7 +21,8 @@
     "clean": "rimraf allure-results allure-report cucumber-report dist",
     "auth:personal": "ts-node -r tsconfig-paths/register src/hooks/auth.setup.ts personal",
     "auth:business": "ts-node -r tsconfig-paths/register src/hooks/auth.setup.ts business",
-    "auth:clients": "ts-node -r tsconfig-paths/register src/hooks/auth.setup.ts clients"
+    "auth:clients": "ts-node -r tsconfig-paths/register src/hooks/auth.setup.ts clients",
+    "test:full": "ts-node -r tsconfig-paths/register src/hooks/auth.setup.ts"
   },
   "dependencies": {
     "dotenv": "^16.4.5"
@@ -42,13 +43,13 @@
   },
   "cucumber": {
     "require": [
-      "src/hooks/*.ts",
       "tests/support/world.ts",
       "tests/support/hooks.ts",
       "tests/step-definitions/**/*.ts"
     ],
     "requireModule": [
-      "ts-node/register"
+      "ts-node/register",
+      "tsconfig-paths/register"
     ],
     "format": [
       "progress-bar",
