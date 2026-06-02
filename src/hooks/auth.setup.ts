@@ -43,11 +43,12 @@ type AccountType = typeof accountTypes[number];
  */
 const onboardingSteps: Record<AccountType, string[]> = {
     personal: [
-        "Personal Use",                    // Step 1 — account type
-        "Freelancer",                      // Step 2 — occupation
-        "Generate Leads for my Business",  // Step 3 — primary goal
-        "Cold Outreach",                   // Step 4 — how would you use it
-        "0 - 30K",                         // Step 5 — email volume
+        "Personal Use",
+        "Freelancer",
+        "Generate Leads for my Business",
+        "Cold Outreach",
+        "0 - 30K",
+        "Google",                          // Step 6 — How did you find us?
     ],
     business: [
         "Business",                              // Step 1 — account type
