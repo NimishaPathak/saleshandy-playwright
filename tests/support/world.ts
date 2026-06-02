@@ -1,12 +1,14 @@
 import { setWorldConstructor, World, IWorldOptions } from '@cucumber/cucumber';
 import { Browser, BrowserContext, Page, chromium } from '@playwright/test';
 import * as dotenv from 'dotenv';
+import * as fs from 'fs';
+import * as path from 'path';
 
 dotenv.config();
 
 /**
  * CustomWorld — shares Playwright browser, context and page across all steps.
- * Cucumber's World object is instantiated fresh for each scenario.
+ * Loads storage state from auth/ folder if available — skips login entirely.
  */
 export class CustomWorld extends World {
     browser!: Browser;
@@ -20,15 +22,34 @@ export class CustomWorld extends World {
         super(options);
     }
 
-    async openBrowser(): Promise<void> {
+    async openBrowser(accountType?: string): Promise<void> {
         this.browser = await chromium.launch({
             headless: process.env.HEADLESS !== 'false',
         });
+
+        // Load storage state if available for this account type
+        let storageState: any = undefined;
+        if (accountType) {
+            const statePath = path.resolve(
+                __dirname, `../../auth/storageState.${accountType}.json`
+            );
+            if (fs.existsSync(statePath)) {
+                try {
+                    storageState = JSON.parse(fs.readFileSync(statePath, 'utf-8'));
+                    console.log(`  [Auth] Loaded storage state for: ${accountType}`);
+                } catch {
+                    console.warn(`  [Auth] Could not load storage state for: ${accountType}`);
+                }
+            }
+        }
+
         this.context = await this.browser.newContext({
             viewport: { width: 1280, height: 720 },
             locale: 'en-US',
             timezoneId: 'Asia/Kolkata',
+            storageState: storageState || undefined,
         });
+
         this.page = await this.context.newPage();
     }
 
@@ -40,28 +61,14 @@ export class CustomWorld extends World {
 
 setWorldConstructor(CustomWorld);
 
-/**
- * getPage — safely casts Cucumber's IWorld<any> to CustomWorld and returns the page.
- * This resolves the TypeScript error:
- * "Argument of type 'IWorld<any>' is not assignable to parameter of type 'CustomWorld'"
- *
- * Usage in step definitions:
- *   const page = getPage(this);
- */
 export function getPage(world: unknown): Page {
     const customWorld = world as CustomWorld;
     if (!customWorld.page) {
-        throw new Error(
-            'Page not initialized. Make sure openBrowser() was called in the Before hook.',
-        );
+        throw new Error('Page not initialized. Make sure openBrowser() was called in Before hook.');
     }
     return customWorld.page;
 }
 
-/**
- * getWorld — casts this context to CustomWorld for accessing extra properties.
- * Use when you need testEmail, testPassword, or accountType from the world.
- */
 export function getWorld(world: unknown): CustomWorld {
     return world as CustomWorld;
 }

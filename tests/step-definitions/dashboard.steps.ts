@@ -154,3 +154,18 @@ When('I click the X on the announcement banner', async function () {
     const closeBtn = page.locator('[class*="banner"] button, [class*="announcement"] button').first();
     await closeBtn.click();
 });
+
+// ── NEW: Navigate to dashboard using storage state ────────────
+
+Given('I navigate to the Saleshandy dashboard', async function () {
+    const page = getPage(this);
+    dashboardPage = new DashboardPage(page);
+    // Storage state already loaded by hooks.ts based on @personal/@business/@clients tag
+    // Just navigate to the sequences page
+    await page.goto('https://my.saleshandy.com/sequence', {
+        waitUntil: 'domcontentloaded',
+        timeout: 30000,
+    });
+    await page.waitForTimeout(2000);
+    logger.success('Navigated to dashboard');
+});

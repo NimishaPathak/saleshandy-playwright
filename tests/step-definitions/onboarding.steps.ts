@@ -375,3 +375,15 @@ Then('I should NOT see the occupation question', async function () {
     const page = getPage(this);
     await expect(page.getByText('Please select your occupation')).not.toBeVisible();
 });
+
+// ── Navigate to dashboard (uses storage state from hooks) ─────
+
+Given('I navigate to the Saleshandy dashboard', async function () {
+    const page = getPage(this);
+    onboardingPage = new OnboardingPage(page);
+    await page.goto('https://my.saleshandy.com/sequence', {
+        waitUntil: 'domcontentloaded',
+        timeout: 30000,
+    });
+    await page.waitForTimeout(2000);
+});
